@@ -242,7 +242,7 @@ int turn( struct player *player )
     }
 
     // move finalized
-    struct player *opponent = player->color==1 ? &black : &white;
+    struct player *opponent = player->color==1 ? black : white;
     for (int i=0; i<16; i++) { 
       // adjust the piece position in the player struct
       if ( player->pieces->x[i]==move[0] && player->pieces->y[i]==move[1] ) {
@@ -255,7 +255,7 @@ int turn( struct player *player )
         opponent->pieces->x[i] = 0;
         opponent->pieces->y[i] = 0;
         opponent->pieces->active[i] = 0;
-        switch ( opponent->pieces->type ) {
+        switch ( opponent->pieces->type[i] ) {
           case 1: player->points += 1;  break;
           case 2: player->points += 5;  break;
           case 3: player->points += 3;  break;
