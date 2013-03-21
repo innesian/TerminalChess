@@ -10,32 +10,32 @@
 #define MAX_X 8
 
 #if defined(_WIN32) || defined(WIN32)
-	#define CLEAR_SCR "cls"
+  #define CLEAR_SCR "cls"
 #else
-    #define CLEAR_SCR "clear"
+  #define CLEAR_SCR "clear"
 #endif
 
 typedef enum { P=1, R=2, N=3, B=4, Q=5, K=6 } piece_type;
 typedef enum { WHITE=1, BLACK=2 } piece_color;
 
 struct board {
-	int black[64];
-	int white[64];
+  int black[64];
+  int white[64];
 };
 
 struct board *theater;
 
 struct pieces {
-	piece_type type[16];
-    int x[16]; // horizontal piece position
-    int y[16]; // vertical piece position
-    int active[16];
+  piece_type type[16];
+  int x[16]; // horizontal piece position
+  int y[16]; // vertical piece position
+  int active[16];
 };
 
 struct player {
-	piece_color color;
-	int points;
-	struct pieces *pieces;
+  piece_color color;
+  int points;
+  struct pieces *pieces;
 };
 
 struct player *white;

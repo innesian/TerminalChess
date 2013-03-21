@@ -3,11 +3,11 @@
 
 int main(void) 
 {
-	theater = board_create();
-	white   = player_create( WHITE );
-	black   = player_create( BLACK );
+  theater = board_create();
+  white   = player_create( WHITE );
+  black   = player_create( BLACK );
 
-	play();
+  play();
 
-	return 0;
+  return 0;
 }
