@@ -30,7 +30,7 @@ struct board *board_create( void )
 
 void board_destroy( void )
 {
-  free( theater );
+  free( board );
 }
 
 struct player *player_create( int player_number )
@@ -108,10 +108,10 @@ void print_board( void )
       if ( background%2 )
         printf(DARK_BACKGROUND);
 
-      if ( (piece=get_piece(theater->black[l])) ) {
+      if ( (piece=get_piece(board->black[l])) ) {
         printf(P2_COLOR " %c ", piece );
 
-      } else if ( (piece=get_piece(theater->white[l])) ) {
+      } else if ( (piece=get_piece(board->white[l])) ) {
         printf(P1_COLOR" %c ", piece );
 
       } else {
@@ -216,14 +216,13 @@ int turn( struct player *player )
       goto get_move;
     }
 
-    // check if piece is on the from-square
     int from_location = get_location( move[0], move[1] ); // moving from
     int to_location   = get_location( move[2], move[3] ); // moving to
 
     // piece positions on the board
     int *player_pieces, *opponent_pieces;
-    player_pieces   = player->color==1 ? theater->white : theater->black;
-    opponent_pieces = player->color==1 ? theater->black : theater->white;
+    player_pieces   = player->color==1 ? board->white : board->black;
+    opponent_pieces = player->color==1 ? board->black : board->white;
 
     if ( player_pieces[from_location]==0 ) { // is there a piece to move?
       move_error("Player has no piece to move at that position.");
@@ -242,12 +241,14 @@ int turn( struct player *player )
     temp_turn[2] = opponent_pieces[to_location];
 
     // make the move.
-    player_pieces[to_location] = player_pieces[from_location];
+    player_pieces[to_location]   = player_pieces[from_location];
     player_pieces[from_location] = 0;
-    opponent_pieces[to_location]   = 0;
+    opponent_pieces[to_location] = 0;
+
+////////// adjust the piece positions in the player structure or the in_check function won't work properly.
 
     if ( in_check( player ) ) { // if the king is now in check, undo move and alert player.
-      player_pieces[to_location] = temp_turn[0];
+      player_pieces[to_location]   = temp_turn[0];
       player_pieces[from_location] = temp_turn[1];
       opponent_pieces[to_location] = temp_turn[2];
       move_error("This move would put or leave your king in check.");
@@ -263,25 +264,26 @@ int turn( struct player *player )
 
 int in_check( struct player *player )
 {
-  int enemy_piece, directions[4], bounds[4], blocked[4] = {0}, blocked_h[4] = {0}, move[2];
-  move[0] = player->pieces->x[12];
-  move[1] = player->pieces->y[12];
+  int enemy_piece, directions[4], bounds[4], blocked[4] = {0}, blocked_v[4] = {0}, move[2];
+
+  int kingx = player->pieces->x[12]; // king x position
+  int kingy = player->pieces->y[12]; // king y position
 
   for ( int i=1; i<10; i++ ) { // horizontal and vertical check
-    directions[0] = get_location( move[0], move[1]+i );
-    bounds[0]     = in_bounds( move[0], move[1]+i );
-    directions[1] = get_location( move[0], move[1]-i );
-    bounds[1]     = in_bounds( move[0], move[1]-i );
-    directions[2] = get_location( move[0]-i, move[1] );
-    bounds[2]     = in_bounds( move[0]-i, move[1] );
-    directions[3] = get_location( move[0]+i, move[1] );
-    bounds[3]     = in_bounds( move[0]+i, move[1] );
+    directions[0] = get_location( kingx, kingy+i ); // up
+    bounds[0]     = in_bounds(    kingx, kingy+i );
+    directions[1] = get_location( kingx, kingy-i ); // down
+    bounds[1]     = in_bounds(    kingx, kingy-i );
+    directions[2] = get_location( kingx-i, kingy ); // left
+    bounds[2]     = in_bounds(    kingx-i, kingy );
+    directions[3] = get_location( kingx+i, kingy ); // right
+    bounds[3]     = in_bounds(    kingx+i, kingy );
     for ( int j=0; j<4; j++ ) {
       if ( !blocked[j] ) {
-        if ( bounds[j] && (player->color==1 ? theater->white[directions[j]] : theater->black[directions[j]])!=0 )
+        if ( bounds[j] && (player->color==1 ? board->white[directions[j]] : board->black[directions[j]])!=0 )
           blocked[j]++;
         else if ( bounds[j] ) {
-          enemy_piece = player->color==1 ? theater->black[directions[j]] : theater->white[directions[j]];
+          enemy_piece = (player->color==1 ? board->black[directions[j]] : board->white[directions[j]]);
           if ( enemy_piece==2 || enemy_piece==5 )
             return 1;
         }
@@ -290,20 +292,21 @@ int in_check( struct player *player )
   }
 
   for ( int i=1; i<10; i++ ) { // diagonal checks
-    directions[0] = get_location( move[0], move[1]+i );
-    bounds[0]     = in_bounds( move[0], move[1]+i );
-    directions[1] = get_location( move[0], move[1]-i );
-    bounds[1]     = in_bounds( move[0], move[1]-i );
-    directions[2] = get_location( move[0]-i, move[1] );
-    bounds[2]     = in_bounds( move[0]-i, move[1] );
-    directions[3] = get_location( move[0]+i, move[1] );
-    bounds[3]     = in_bounds( move[0]+i, move[1] );
+    directions[0] = get_location( kingx-i, kingy+i ); // up-left
+    bounds[0]     = in_bounds(    kingx-i, kingy+i );
+    directions[1] = get_location( kingx+i, kingy+i ); // up-right
+    bounds[1]     = in_bounds(    kingx+i, kingy+i );
+    directions[2] = get_location( kingx-i, kingy-i ); // down-left
+    bounds[2]     = in_bounds(    kingx-i, kingy-i );
+    directions[3] = get_location( kingx+i, kingy-i ); // down-right
+    bounds[3]     = in_bounds(    kingx+i, kingy-i );
+
     for ( int j=0; j<4; j++ ) {
-      if ( !blocked_h[j] ) {
-        if ( bounds[j] && (player->color==1 ? theater->white[directions[j]] : theater->black[directions[j]])!=0 )
-          blocked_h[j]++;
+      if ( !blocked_v[j] ) {
+        if ( bounds[j] && (player->color==1 ? board->white[directions[j]] : board->black[directions[j]])!=0 )
+          blocked_v[j]++;
         else if ( bounds[j] ) {
-          enemy_piece = player->color==1 ? theater->black[directions[j]] : theater->white[directions[j]];
+          enemy_piece = (player->color==1 ? board->black[directions[j]] : board->white[directions[j]]);
           if ( enemy_piece==4 || enemy_piece==5 )
             return 1;
         }
@@ -312,27 +315,27 @@ int in_check( struct player *player )
   }
 
   for ( int i=-1; i<2; i+=2 ) { // enemy knight check
-    directions[0] = get_location( move[0]+2, move[1]+i );
-    bounds[0]     = in_bounds( move[0]+2, move[1]+i );
-    directions[1] = get_location( move[0]-2, move[1]+i );
-    bounds[1]     = in_bounds( move[0]-2, move[1]+i );
-    directions[2] = get_location( move[0]+i, move[1]+2 );
-    bounds[2]     = in_bounds( move[0]+i, move[1]+2 );
-    directions[3] = get_location( move[0]+i, move[1]-2 );
-    bounds[3]     = in_bounds( move[0]+i, move[1]-2 );
+    directions[0] = get_location( kingx+2, kingy+i ); // up
+    bounds[0]     = in_bounds(    kingx+2, kingy+i );
+    directions[1] = get_location( kingx-2, kingy+i ); // down
+    bounds[1]     = in_bounds(    kingx-2, kingy+i );
+    directions[2] = get_location( kingx+i, kingy+2 ); // left
+    bounds[2]     = in_bounds(    kingx+i, kingy+2 );
+    directions[3] = get_location( kingx+i, kingy-2 ); // right
+    bounds[3]     = in_bounds(    kingx+i, kingy-2 );
     for ( int j=0; j<4; j++ ) {
-      if ( bounds[j] && (player->color==1 ? theater->black[directions[j]] : theater->white[directions[j]])==3 )
+      if ( bounds[j] && (player->color==1 ? board->black[directions[j]] : board->white[directions[j]])==3 )
         return 1;
     }
   }
 
   // attacking pawn check
-  directions[0] = get_location( move[0]-1, (player->color==1 ? (move[1]+1) : (move[1]-1)) );
-  bounds[0]     = get_location( move[0]-1, (player->color==1 ? (move[1]+1) : (move[1]-1)) );
-  directions[1] = get_location( move[0]+1, (player->color==1 ? (move[1]+1) : (move[1]-1)) );
-  bounds[1]     = get_location( move[0]+1, (player->color==1 ? (move[1]+1) : (move[1]-1)) );
+  directions[0] = get_location( kingx-1, (player->color==1 ? (kingy+1) : (kingy-1)) );
+  bounds[0]     = get_location( kingx-1, (player->color==1 ? (kingy+1) : (kingy-1)) );
+  directions[1] = get_location( kingx+1, (player->color==1 ? (kingy+1) : (kingy-1)) );
+  bounds[1]     = get_location( kingx+1, (player->color==1 ? (kingy+1) : (kingy-1)) );
   for ( int i=0; i<2; i++ )
-    if ( bounds[i] && (player->color==1 ? theater->black[directions[i]] : theater->white[directions[i]])==1 )
+    if ( bounds[i] && (player->color==1 ? board->black[directions[i]] : board->white[directions[i]])==1 )
       return 1;
 
   return 0;
@@ -346,17 +349,17 @@ int is_move_legal( int type, int *move, int color ) {
   switch( type ) {
     case 1: // Pawn:
 
-      for ( int i=-1, sq_location; i<=2; i++ ) { // check the available moves along the x-axis in front of the pawn.
+      for ( int i=-1, sq_location; i<2; i++ ) { // check the available moves along the x-axis in front of the pawn.
 
         // white pieces move up, black will move down.
         sq_location = color==1 ? get_location( move[0]+i, move[1]+1) : get_location( move[0]+i, move[1]-1 );
 
-        if ( i==0 && theater->black[sq_location]!=0 && theater->white[sq_location]!=0 )
+        if ( i==0 && board->black[sq_location]!=0 && board->white[sq_location]!=0 )
           blocked[0]++; // the pawn has a piece directly in front blocking a two square first move.
 
         if ( sq_location==to_location ) { // the requested move is in the pawn's range.
 
-          if ( i!=0 && ( color==1 ? theater->black[sq_location] : theater->white[sq_location] )==0 ) 
+          if ( i!=0 && ( color==1 ? board->black[sq_location] : board->white[sq_location] )==0 ) 
             return 0; // attacking diagonally, there is no enemy occupying the square.
 
           return 1; // the move is good.
@@ -370,7 +373,7 @@ int is_move_legal( int type, int *move, int color ) {
       break;
 
     case 3: // Knight: 
-      for ( int i=-1; i<2; i+=2 ) { // check the two attack square in each direction.
+      for ( int i=-1; i<2; i+=2 ) { // check the two attack squares in each direction.
         if ( get_location( move[0]+2, move[1]+i )==to_location )
           return 1;
         if ( get_location( move[0]-2, move[1]+i )==to_location )
@@ -412,7 +415,7 @@ int is_move_legal( int type, int *move, int color ) {
         for ( int j=0; j<4; j++ ) { // for each direction at a distance of i squares
           if ( bounds[j] && directions[j]==to_location )
             return ( !blocked[j] ? 1 : 0 ); // there are no pieces in the way and the move is legal.
-          else if ( bounds[j] && ( theater->white[directions[j]]!=0 || theater->black[directions[j]]!=0 ) ) 
+          else if ( bounds[j] && ( board->white[directions[j]]!=0 || board->black[directions[j]]!=0 ) ) 
             blocked[j]++; // there is a piece blocking this direction.
         }
       }
@@ -434,7 +437,7 @@ int is_move_legal( int type, int *move, int color ) {
         for ( int j=0; j<4; j++ ) { // for each direction at a distance of i squares
           if ( bounds[j] && directions[j]==to_location )
             return ( !blocked_h[j] ? 1 : 0 ); // there are no pieces in the way and the move is legal.
-          else if ( bounds[j] && ( theater->white[directions[j]]!=0 || theater->black[directions[j]]!=0 ) )
+          else if ( bounds[j] && ( board->white[directions[j]]!=0 || board->black[directions[j]]!=0 ) )
             blocked_h[j]++; // there is a piece blocking this direction.
         }
       }

@@ -3,7 +3,7 @@
 
 int main(void) 
 {
-  theater = board_create();
+  board   = board_create();
   white   = player_create( WHITE );
   black   = player_create( BLACK );
 

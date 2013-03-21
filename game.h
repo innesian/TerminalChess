@@ -23,7 +23,7 @@ struct board {
   int white[64];
 };
 
-struct board *theater;
+struct board *board;
 
 struct pieces {
   piece_type type[16];
