@@ -33,7 +33,7 @@ void board_destroy( void )
   free( board );
 }
 
-struct player *player_create( int player_number )
+struct player *player_create( int color )
 {
   int x[]         = { 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8 };
   int black_y[]   = { 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8 };
@@ -50,9 +50,9 @@ struct player *player_create( int player_number )
     exit_game("Unable to set player pieces.");
 
   player->pieces = pieces;
-  player->color = player_number;
+  player->color = color;
 
-  for (int i=0; i<=15; i++ ) { // initialize pieces and positions.
+  for (int i=0; i<16; i++ ) { // initialize pieces and positions.
     player->pieces->x[i] = x[i];
     player->pieces->y[i] = player->color==1 ? white_y[i] : black_y[i];
     player->pieces->active[i] = 1;
@@ -242,12 +242,27 @@ int turn( struct player *player )
     }
 
     // move finalized
-
-    for (int i=0; i<16; i++) { // adjust the piece position in the player struct
+    struct player *opponent = player->color==1 ? &black : &white;
+    for (int i=0; i<16; i++) { 
+      // adjust the piece position in the player struct
       if ( player->pieces->x[i]==move[0] && player->pieces->y[i]==move[1] ) {
         player->pieces->x[i] = move[2];
         player->pieces->y[i] = move[3];
         break;
+      }
+      // mark the opponent piece as inactive and award points to player
+      if ( opponent->pieces->x[i]==move[1] && opponent->pieces->y[i]==move[2] ) {
+        opponent->pieces->x[i] = 0;
+        opponent->pieces->y[i] = 0;
+        opponent->pieces->active[i] = 0;
+        switch ( opponent->pieces->type ) {
+          case 1: player->points += 1;  break;
+          case 2: player->points += 5;  break;
+          case 3: player->points += 3;  break;
+          case 4: player->points += 3;  break;
+          case 5: player->points += 9;  break;
+          default:  break;
+        }
       }
     }
 
