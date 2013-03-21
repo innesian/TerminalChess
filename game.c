@@ -12,17 +12,15 @@ struct board *board_create( void )
     exit_game("Unable to create the board.");
 
   int pieces[64] = { 0, 2, 3, 4, 5, 6, 4, 3, 2, 1, 1, 1, 1, 1, 1, 1, 1 };
-
-  for ( int i=1; i<=64; i++ ) {
+  // each color keeps track of its pieces in a separate array
+  for ( int i=1; i<=64; i++ ) { // initialize pieces for both sides
     board->white[i] = 0;
     board->black[i] = 0;
 
     if ( i<17 )
       board->white[i] = pieces[i];  
-
     if ( i>=49 && i<=56 ) 
       board->black[i] = 1;
-
     else if ( i>56 )
       board->black[i] = pieces[i-56];
   }
@@ -37,7 +35,7 @@ void board_destroy( void )
 
 struct player *player_create( int player_number )
 {
-  int x[] = { 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8 };
+  int x[]         = { 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8 };
   int black_y[]   = { 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8 };
   int white_y[]   = { 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1 };
   piece_type init_pieces[] = { P, P, P, P, P, P, P, P, R, N, B, Q, K, B, N, R };
@@ -132,21 +130,14 @@ char get_piece( int type )
   char piece;
 
   switch( type ) {
-    case 0:
-      return '\0';
-    case 1:
-      return 'P';
-    case 2:
-      return 'R';
-    case 3:
-      return 'N';
-    case 4:
-      return 'B';
-    case 5:
-      return 'Q';
-    case 6:
-      return 'K';
-    default: return '\0';
+    case 0:   return '\0';
+    case 1:   return 'P';
+    case 2:   return 'R';
+    case 3:   return 'N';
+    case 4:   return 'B';
+    case 5:   return 'Q';
+    case 6:   return 'K';
+    default:  return '\0';
   }
   return piece;
 }
@@ -189,36 +180,35 @@ void move_error( char *error )
   printf("%s\n", error);
 }
 
-int turn( struct player *p )
+int turn( struct player *player )
 {
   int move[4]; // 0: From X, 1: From Y, 2: To X, 3: To Y
   int temp_turn[3];
 
   total_moves++;
+  print_board();
+
   if ( total_moves<3 )
     printf("Enter HELP for directions.\n");
 
-  print_board();
-
   get_move:
-    if ( in_check( p ) )
+    if ( in_check( player ) )
       printf("You are in check.\n");
 
-    printf("%s: ", p->color==1 ? "White" : "Black" );
+    printf("%s: ", player->color==1 ? "White" : "Black" );
     fflush(stdout);
     fflush(stdin);
     for ( int i=0; i<=4; i++ ) {
       move[i] = getchar();
 
-      if( move[i]>72 )          // convert lowercase to upper
+      if( move[i]>72 )  // convert lowercase to upper
         move[i] = toupper( move[i] );
-
-      if ( move[i]>64 )           // convert all letters to their row-integer equivalent
-        move[i] -= 64;
-
-      else                // convert ASCII numbers to their actual integer value
-        move[i] -= 48;
+      if ( move[i]>64 )
+        move[i] -= 64;  // convert all letters to their row-integer equivalent
+      else
+        move[i] -= 48;  // convert ASCII numbers to their actual integer value
     }
+    fflush(stdin);
 
     // are both moves referencing a location actually on the board?
     if ( !in_bounds( move[0], move[1] ) || !in_bounds( move[2], move[3] ) ) {
@@ -227,81 +217,46 @@ int turn( struct player *p )
     }
 
     // check if piece is on the from-square
-    int from_location = get_location( move[0], move[1] );
-    int to_location   = get_location( move[2], move[3] );
+    int from_location = get_location( move[0], move[1] ); // moving from
+    int to_location   = get_location( move[2], move[3] ); // moving to
 
-    if ( p->color==1 ) {
-      if ( theater->white[from_location]==0 ) {
-        // does the player have a piece to move?
-        move_error("White has no piece to move at that position.");
-        goto get_move;
+    // piece positions on the board
+    int *player_pieces, *opponent_pieces;
+    player_pieces   = player->color==1 ? theater->white : theater->black;
+    opponent_pieces = player->color==1 ? theater->black : theater->white;
 
-      } else if ( theater->white[to_location]!=0 ) {
-        // is the target square occupied by the same color?
-        move_error("White can't capture white pieces.");
-        goto get_move;
-      } else if ( !is_move_legal( theater->white[from_location], move, WHITE ) ) {
-        // is this a legal move, and no other pieces are in the way?
-        move_error("This is not a legal move for this piece.");
-        goto get_move;
-      }
-
-      // save the board, make the move, if it puts the player in check, don't move
-      temp_turn[0] = theater->white[to_location];
-      temp_turn[1] = theater->white[from_location];
-      temp_turn[2] = theater->black[to_location];
-
-      // make the move
-      theater->white[to_location] = theater->white[from_location];
-      theater->white[from_location] = 0;
-      theater->black[to_location]   = 0;
-
-      if ( in_check( p ) ) {
-        // reverse the move
-        theater->white[to_location] = temp_turn[0];
-        theater->white[from_location] = temp_turn[1];
-        theater->black[to_location] = temp_turn[2];
-        move_error("This move would put your king in check.");
-        goto get_move;
-      }
-
-      // handle pawn promotion
-      if ( move[3]==8 && theater->white[to_location]==1 )
-        theater->white[to_location] = pawn_promotion();
-      
-    } else if ( p->color==2 ) {
-      if ( theater->black[from_location]==0 ) {
-        move_error("Black has no piece to move at that position.");
-        goto get_move;
-
-      } else if ( theater->black[to_location]!=0 ) {
-        move_error("Black can't capture white pieces.");
-        goto get_move;
-
-      } else if ( !is_move_legal( theater->black[from_location], move, BLACK ) ) {
-        move_error("This is not a legal move for this piece.");
-        goto get_move;
-      }
-
-      temp_turn[0] = theater->black[to_location];
-      temp_turn[1] = theater->black[from_location];
-      temp_turn[2] = theater->white[to_location];
-
-      theater->black[to_location] = theater->black[from_location];
-      theater->black[from_location] = 0;
-      theater->white[to_location]   = 0;
-
-      if ( in_check( p ) ) {
-        theater->black[to_location] = temp_turn[0];
-        theater->black[from_location] = temp_turn[1];
-        theater->white[to_location] = temp_turn[2];
-        move_error("This move would put or leave your king in check.");
-        goto get_move;
-      }
-
-      if ( move[3]==1 && theater->black[to_location]==1 )
-        theater->black[to_location] = pawn_promotion();
+    if ( player_pieces[from_location]==0 ) { // is there a piece to move?
+      move_error("Player has no piece to move at that position.");
+      goto get_move;
+    } else if ( player_pieces[to_location]!=0 ) { // is the target occupied by the same color?
+      move_error("Player can't capture own pieces.");
+      goto get_move;
+    } else if ( !is_move_legal( player_pieces[from_location], move, player->color ) ) { // move legal?
+      move_error("This is not a legal move for this piece.");
+      goto get_move;
     }
+
+    // save the state of the board.
+    temp_turn[0] = player_pieces[to_location];
+    temp_turn[1] = player_pieces[from_location];
+    temp_turn[2] = opponent_pieces[to_location];
+
+    // make the move.
+    player_pieces[to_location] = player_pieces[from_location];
+    player_pieces[from_location] = 0;
+    opponent_pieces[to_location]   = 0;
+
+    if ( in_check( player ) ) { // if the king is now in check, undo move and alert player.
+      player_pieces[to_location] = temp_turn[0];
+      player_pieces[from_location] = temp_turn[1];
+      opponent_pieces[to_location] = temp_turn[2];
+      move_error("This move would put or leave your king in check.");
+      goto get_move;
+    }
+
+    // handle pawn promotion.
+    if ( move[3]==1 && player_pieces[to_location]==1 )
+      player_pieces[to_location] = pawn_promotion();
 
   return 1; 
 }
@@ -396,7 +351,7 @@ int is_move_legal( int type, int *move, int color ) {
         // white pieces move up, black will move down.
         sq_location = color==1 ? get_location( move[0]+i, move[1]+1) : get_location( move[0]+i, move[1]-1 );
 
-        if ( i==0 && theater->black[sq_location]==0 && theater->white[sq_location]==0 )
+        if ( i==0 && theater->black[sq_location]!=0 && theater->white[sq_location]!=0 )
           blocked[0]++; // the pawn has a piece directly in front blocking a two square first move.
 
         if ( sq_location==to_location ) { // the requested move is in the pawn's range.
@@ -454,14 +409,14 @@ int is_move_legal( int type, int *move, int color ) {
         directions[3] = get_location( move[0]+i, move[1]-i );
         bounds[3]     = in_bounds( move[0]+i, move[1]-i );
 
-        for ( int j=0; j<4; j++ ) { // for each direction
+        for ( int j=0; j<4; j++ ) { // for each direction at a distance of i squares
           if ( bounds[j] && directions[j]==to_location )
             return ( !blocked[j] ? 1 : 0 ); // there are no pieces in the way and the move is legal.
           else if ( bounds[j] && ( theater->white[directions[j]]!=0 || theater->black[directions[j]]!=0 ) ) 
             blocked[j]++; // there is a piece blocking this direction.
         }
       }
-      if ( type!=5 )
+      if ( type!=5 ) // queen falls through
         break;
 
     case 2: // Rook: horizontal and vertical check
@@ -476,7 +431,7 @@ int is_move_legal( int type, int *move, int color ) {
         directions[3] = get_location( move[0]+i, move[1] );
         bounds[3]     = in_bounds( move[0]+i, move[1] );
 
-        for ( int j=0; j<4; j++ ) { // for each direction
+        for ( int j=0; j<4; j++ ) { // for each direction at a distance of i squares
           if ( bounds[j] && directions[j]==to_location )
             return ( !blocked_h[j] ? 1 : 0 ); // there are no pieces in the way and the move is legal.
           else if ( bounds[j] && ( theater->white[directions[j]]!=0 || theater->black[directions[j]]!=0 ) )
@@ -503,26 +458,18 @@ int pawn_promotion( void )
 
   get_promotion:
     print_board();
-    fflush(stdin);
-    fflush(stdout);
-    printf("Which piece should the pawn be promoted to? (Q,R,B,N): ");
 
+    printf("Which piece should the pawn be promoted to? (Q,R,B,N): ");
+    fflush(stdin);
     request = getchar();
+
     switch( request ) {
-      case 'Q':
-      case 'q':
-        return 5;
-      case 'R':
-      case 'r':
-        return 2;
-      case 'B':
-      case 'b':
-        return 4;
-      case 'N':
-      case 'n':
-        return 3;
-      default:
-        goto get_promotion;
+      case 'Q':   case 'q':   return 5;
+      case 'R':   case 'r':   return 2;
+      case 'B':   case 'b':   return 4;
+      case 'N':   case 'n':   return 3;
+
+      default:  goto get_promotion;
     }
   return 5;
 }
