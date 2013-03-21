@@ -4,7 +4,6 @@
 #define P1_COLOR "\x1B[33;1m"
 #define P2_COLOR "\x1B[34;1m"
 #define DARK_BACKGROUND "\x1b[47m"
-
 #define RESET_COLOR "\x1b[0m"
 
 #define MAX_X 8
@@ -58,5 +57,4 @@ int turn( struct player * );
 void move_error( char * );
 int is_move_legal( int, int *, int );
 int in_bounds( int, int );
-
 #endif
