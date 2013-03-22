@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 #include <ctype.h>
 #include "game.h"
 
@@ -51,6 +52,7 @@ struct player *player_create( int color )
 
   player->pieces = pieces;
   player->color = color;
+  player->en_passant = 0;
 
   for (int i=0; i<16; i++ ) { // initialize pieces and positions.
     player->pieces->x[i] = x[i];
@@ -243,27 +245,28 @@ int turn( struct player *player )
 
     // move finalized
     struct player *opponent = player->color==1 ? black : white;
+
     for (int i=0; i<16; i++) { 
       // adjust the piece position in the player struct
       if ( player->pieces->x[i]==move[0] && player->pieces->y[i]==move[1] ) {
         player->pieces->x[i] = move[2];
         player->pieces->y[i] = move[3];
-        break;
-      }
-      // mark the opponent piece as inactive and award points to player
-      if ( opponent->pieces->x[i]==move[1] && opponent->pieces->y[i]==move[2] ) {
-        opponent->pieces->x[i] = 0;
-        opponent->pieces->y[i] = 0;
-        opponent->pieces->active[i] = 0;
-        switch ( opponent->pieces->type[i] ) {
-          case 1: player->points += 1;  break;
-          case 2: player->points += 5;  break;
-          case 3: player->points += 3;  break;
-          case 4: player->points += 3;  break;
-          case 5: player->points += 9;  break;
-          default:  break;
+
+        // flag potential en passant rule on the next move clear last flag
+        if ( player_pieces[to_location]==PAWN && abs(move[1]-move[3])==2 )
+          player->en_passant = 1;
+        else
+          player->en_passant = 0;
+
+        // check if player is capturing with the en passant rule
+        if ( player->pieces->type[i]==PAWN && opponent->en_passant && en_passant( player, move ) ) {
+          // remove piece, award points
+          opponent_pieces[get_location(move[2],move[1])] = 0;
+          player->points += capture_piece( opponent, move[2], move[0] );
         }
       }
+      // mark the opponent piece as inactive and award points to player
+      player->points += capture_piece( opponent, move[1], move[2] );
     }
 
     // handle pawn promotion.
@@ -271,6 +274,26 @@ int turn( struct player *player )
       player_pieces[to_location] = pawn_promotion();
 
   return 1; 
+}
+
+int capture_piece( struct player *player, int x, int y )
+{
+  for (int i=0; i<16; i++) {
+    if ( player->pieces->x[i]==x && player->pieces->y[i]==y ) {
+      player->pieces->x[i] = 0;
+      player->pieces->y[i] = 0;
+      player->pieces->active[i] = 0;
+      switch ( player->pieces->type[i] ) {
+        case 1: return 1;  break;
+        case 2: return 5;  break;
+        case 3: return 3;  break;
+        case 4: return 3;  break;
+        case 5: return 9;  break;
+        default:  break;
+      }
+    }
+  }
+  return 0;
 }
 
 int in_check( struct player *player )
@@ -350,6 +373,22 @@ int in_check( struct player *player )
       return 1;
 
   return 0;
+}
+
+int en_passant( struct player *player, int *move )
+{
+  int tx = move[2]; // moving to (target square) x-position
+  int ty = move[3]; // moving to (target square) y-position
+  int fx = move[0]; // moving from (origin square) x-position
+  int fy = move[1]; // moving from (origin square) y-position
+  int enemy_piece = get_location( tx, fy );
+
+  int *opponent_pieces = player->color==WHITE ? board->black : board->white;
+
+  if ( tx!=fx && opponent_pieces[enemy_piece]==PAWN && fy==(player->color==WHITE ? 5 : 4) )
+    return enemy_piece; // return location of piece to be captured.
+  else
+    return 0; // not en passant
 }
 
 int is_move_legal( int type, int *move, int color ) {

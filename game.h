@@ -14,6 +14,13 @@
   #define CLEAR_SCR "clear"
 #endif
 
+#define PAWN    1
+#define ROOK    2
+#define KNIGHT  3
+#define BISHOP  4
+#define QUEEN   5
+#define KING    6
+
 typedef enum { P=1, R=2, N=3, B=4, Q=5, K=6 } piece_type;
 typedef enum { WHITE=1, BLACK=2 } piece_color;
 
@@ -34,12 +41,16 @@ struct pieces {
 struct player {
   piece_color color;
   int points;
+  // x value of last move if it was made by a pawn and moved 2 spaces.
+  int en_passant;
   struct pieces *pieces;
 };
 
 struct player *white;
 struct player *black;
 
+int capture_piece( struct player *, int, int );
+int en_passant( struct player *, int * );
 int castle( struct player * );
 int pawn_promotion( void );
 int in_check( struct player * );
