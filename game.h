@@ -43,6 +43,9 @@ struct player {
   int points;
   // x value of last move if it was made by a pawn and moved 2 spaces.
   int en_passant;
+  int king_moved;
+  int queen_rook_moved;
+  int king_rook_moved;
   struct pieces *pieces;
 };
 

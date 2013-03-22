@@ -60,6 +60,7 @@ struct player *player_create( int color )
   player->pieces = pieces;
   player->color = color;
   player->en_passant = 0;
+  player->king_moved = 0;
 
   for (int i=0; i<16; i++ ) { // initialize pieces and positions.
     player->pieces->x[i] = x[i];
@@ -270,6 +271,14 @@ int turn( struct player *player )
           player->en_passant = 1;
         else
           player->en_passant = 0;
+
+        if ( player->pieces[to_location]==KING )
+          player->king_moved = 1; // player can no longer castle
+
+        if ( player->pieces[from_location]==ROOK && ( from_location==1 || from_location==57) )
+          player->queen_rook_moved; // player can no longer castle
+        else if ( player->pieces[from_location]==ROOK && ( from_location==8 || from_location==64) )
+          player->king_rook_moved; // player can no longer castle
 
         // check if player is capturing with the en passant rule
         if ( player->pieces->type[i]==PAWN && opponent->en_passant && en_passant( player, move ) ) {
