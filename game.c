@@ -34,6 +34,13 @@ void board_destroy( void )
   free( board );
 }
 
+void help( void )
+{
+  puts("1) To move enter the starting and ending x position and y position ");
+  puts("   of the moved piece in the form XYXY");
+  puts("2) To castle kingside enter KK, queenside KQ");
+}
+
 struct player *player_create( int color )
 {
   int x[]         = { 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8 };
@@ -191,7 +198,13 @@ int turn( struct player *player )
     for ( int i=0; i<=4; i++ ) {
       move[i] = getchar();
 
-      if( move[i]>72 )  // convert lowercase to upper
+      if ( i=2 && move[i]=='L' ) {
+        print_board();
+        help();
+        goto get_move;
+      }
+
+      if ( move[i]>72 )  // convert lowercase to upper
         move[i] = toupper( move[i] );
       if ( move[i]>64 )
         move[i] -= 64;  // convert all letters to their row-integer equivalent

@@ -49,6 +49,7 @@ struct player {
 struct player *white;
 struct player *black;
 
+void help( void );
 int capture_piece( struct player *, int, int );
 int en_passant( struct player *, int * );
 int castle( struct player * );

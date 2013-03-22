@@ -1,4 +1,4 @@
-CFLAGS=-Wall -g -std=c99
+CFLAGS=-Wall -g
 
 chess: chess.o game.o
 	gcc -std=c99 -o chess chess.o game.o
