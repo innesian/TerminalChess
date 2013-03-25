@@ -189,17 +189,20 @@ int turn( struct player *player )
     printf("Enter HELP for directions.\n");
 
   get_move:
-    if ( in_check( player ) )
+    if ( in_check( player->color, player->pieces->x[12], player->pieces->y[12] ) )
       printf("You are in check.\n");
 
-    printf("%s: ", player->color==1 ? "White" : "Black" );
+    printf("%s: ", player->color==WHITE ? "White" : "Black" );
     fflush(stdout);
     fflush(stdin);
 
     for ( int i=0; i<=4; i++ ) {
       move[i] = getchar();
 
-      if ( i=2 && move[i]=='L' ) {
+      if ( i==1 && ( move[i]=='K' || move[i]=='Q' ) && !castle( player->color, ( move[i]=='K' ? KING : QUEEN ) ) )
+          goto get_move; // player can't castle
+
+      if ( i==2 && move[i]=='L' ) {
         print_board();
         help();
         goto get_move;
@@ -249,7 +252,8 @@ int turn( struct player *player )
     player_pieces[from_location] = 0;
     opponent_pieces[to_location] = 0;
 
-    if ( in_check( player ) ) { // if the king is now in check, undo move and alert player.
+    if ( in_check( player->color, player->pieces->x[12], player->pieces->y[12] ) ) { 
+      // if the king is now in check, undo move and alert player.
       player_pieces[to_location]   = temp_turn[0];
       player_pieces[from_location] = temp_turn[1];
       opponent_pieces[to_location] = temp_turn[2];
@@ -272,12 +276,12 @@ int turn( struct player *player )
         else
           player->en_passant = 0;
 
-        if ( player->pieces[to_location]==KING )
+        if ( player_pieces[to_location]==KING )
           player->king_moved = 1; // player can no longer castle
 
-        if ( player->pieces[from_location]==ROOK && ( from_location==1 || from_location==57) )
+        if ( player_pieces[from_location]==ROOK && ( from_location==1 || from_location==57) )
           player->queen_rook_moved; // player can no longer castle
-        else if ( player->pieces[from_location]==ROOK && ( from_location==8 || from_location==64) )
+        else if ( player_pieces[from_location]==ROOK && ( from_location==8 || from_location==64) )
           player->king_rook_moved; // player can no longer castle
 
         // check if player is capturing with the en passant rule
@@ -318,12 +322,12 @@ int capture_piece( struct player *player, int x, int y )
   return 0;
 }
 
-int in_check( struct player *player )
+int in_check( piece_color color, int x, int y )
 {
   int enemy_piece, directions[4], bounds[4], blocked[4] = {0}, blocked_v[4] = {0}, move[2];
-
-  int kingx = player->pieces->x[12]; // king x position
-  int kingy = player->pieces->y[12]; // king y position
+  
+  int kingx = x;
+  int kingy = y;
 
   for ( int i=1; i<10; i++ ) { // horizontal and vertical check
     directions[0] = get_location( kingx, kingy+i ); // up
@@ -336,10 +340,10 @@ int in_check( struct player *player )
     bounds[3]     = in_bounds(    kingx+i, kingy );
     for ( int j=0; j<4; j++ ) {
       if ( !blocked[j] ) {
-        if ( bounds[j] && (player->color==1 ? board->white[directions[j]] : board->black[directions[j]])!=0 )
+        if ( bounds[j] && (color==WHITE ? board->white[directions[j]] : board->black[directions[j]])!=0 )
           blocked[j]++;
         else if ( bounds[j] ) {
-          enemy_piece = (player->color==1 ? board->black[directions[j]] : board->white[directions[j]]);
+          enemy_piece = (color==WHITE ? board->black[directions[j]] : board->white[directions[j]]);
           if ( enemy_piece==2 || enemy_piece==5 )
             return 1;
         }
@@ -359,10 +363,10 @@ int in_check( struct player *player )
 
     for ( int j=0; j<4; j++ ) {
       if ( !blocked_v[j] ) {
-        if ( bounds[j] && (player->color==1 ? board->white[directions[j]] : board->black[directions[j]])!=0 )
+        if ( bounds[j] && (color==WHITE ? board->white[directions[j]] : board->black[directions[j]])!=0 )
           blocked_v[j]++;
         else if ( bounds[j] ) {
-          enemy_piece = (player->color==1 ? board->black[directions[j]] : board->white[directions[j]]);
+          enemy_piece = (color==WHITE ? board->black[directions[j]] : board->white[directions[j]]);
           if ( enemy_piece==4 || enemy_piece==5 )
             return 1;
         }
@@ -380,18 +384,18 @@ int in_check( struct player *player )
     directions[3] = get_location( kingx+i, kingy-2 ); // right
     bounds[3]     = in_bounds(    kingx+i, kingy-2 );
     for ( int j=0; j<4; j++ ) {
-      if ( bounds[j] && (player->color==1 ? board->black[directions[j]] : board->white[directions[j]])==3 )
+      if ( bounds[j] && (color==WHITE ? board->black[directions[j]] : board->white[directions[j]])==3 )
         return 1;
     }
   }
 
   // attacking pawn check
-  directions[0] = get_location( kingx-1, (player->color==1 ? (kingy+1) : (kingy-1)) );
-  bounds[0]     = get_location( kingx-1, (player->color==1 ? (kingy+1) : (kingy-1)) );
-  directions[1] = get_location( kingx+1, (player->color==1 ? (kingy+1) : (kingy-1)) );
-  bounds[1]     = get_location( kingx+1, (player->color==1 ? (kingy+1) : (kingy-1)) );
+  directions[0] = get_location( kingx-1, (color==WHITE ? (kingy+1) : (kingy-1)) );
+  bounds[0]     = get_location( kingx-1, (color==WHITE ? (kingy+1) : (kingy-1)) );
+  directions[1] = get_location( kingx+1, (color==WHITE ? (kingy+1) : (kingy-1)) );
+  bounds[1]     = get_location( kingx+1, (color==WHITE ? (kingy+1) : (kingy-1)) );
   for ( int i=0; i<2; i++ )
-    if ( bounds[i] && (player->color==1 ? board->black[directions[i]] : board->white[directions[i]])==1 )
+    if ( bounds[i] && (color==WHITE ? board->black[directions[i]] : board->white[directions[i]])==1 )
       return 1;
 
   return 0;
@@ -526,7 +530,7 @@ int is_move_legal( int type, int *move, int color ) {
   return 0;
 }
 
-int castle( struct player *player )
+int castle( int color, int side )
 {
   return 1;
 }
